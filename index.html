@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbound shipments</title>
+<style>
+  :root {
+    --paper: #f5f6f8;
+    --card: #ffffff;
+    --ink: #18212d;
+    --muted: #5d6877;
+    --line: #d9dee5;
+    --blue: #1f5fbf;
+    --blue-soft: #e6eefb;
+    --slate: #6b7a90;
+    --amber: #9a5f00;
+    --amber-soft: #fdf1da;
+    --red: #b3261e;
+    --red-soft: #fbe7e5;
+    --green: #2b7a58;
+    --green-soft: #e2f2ea;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 14px/1.45 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 24px 32px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--blue-soft); color: var(--blue); }
+  .badge.demo { background: var(--amber-soft); color: var(--amber); }
+
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .tools label { position: absolute; left: -9999px; }
+  select, input[type="search"], button {
+    font: inherit; color: var(--ink); background: var(--card);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; min-height: 34px;
+  }
+  button { cursor: pointer; font-weight: 600; }
+  button:hover { border-color: var(--slate); }
+  button.link { border: 0; background: none; color: var(--blue); padding: 7px 4px; font-weight: 600; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  .notice { margin: 0 0 16px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); }
+  .notice.error { border-color: #e3b1ad; background: var(--red-soft); color: #6f1712; }
+
+  .pipeline { display: grid; grid-template-columns: repeat(4, 1fr) 1.1fr; background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .stage { padding: 16px 18px 18px; border-right: 1px solid var(--line); }
+  .stage .name { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--slate); flex: none; }
+  .stage .count { font-size: 34px; line-height: 1.1; font-weight: 650; margin: 6px 0 10px; }
+  .track { height: 6px; background: #e8ebf0; border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 3px; }
+  .attention { padding: 16px 18px; display: flex; flex-direction: column; justify-content: center; gap: 10px; background: var(--green-soft); }
+  .attention.risk { background: var(--red-soft); }
+  .attention .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .attention .big { font-size: 26px; font-weight: 650; }
+  .attention .label { font-weight: 600; }
+  .attention .risk-text { color: var(--red); }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(240px, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .panel h2 { margin: 0; padding: 14px 18px; font-size: 14px; font-weight: 650; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th:first-child, td:first-child { padding-left: 18px; }
+  th:last-child, td:last-child { padding-right: 18px; }
+  th { text-align: left; padding: 9px 10px; font-size: 12.5px; font-weight: 600; color: var(--muted); background: #fafbfc; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 9px 10px; border-top: 1px solid #edf0f4; white-space: nowrap; font-size: 13.5px; }
+  td.supplier { white-space: normal; min-width: 110px; }
+  tbody tr:first-child td { border-top: 0; }
+  td.ref { font-weight: 600; }
+  .status { display: inline-flex; align-items: center; gap: 7px; }
+  .chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: #eef1f5; color: var(--muted); }
+  .chip.late { background: var(--red-soft); color: var(--red); }
+  .chip.soon { background: var(--amber-soft); color: var(--amber); }
+  .chip.done { background: var(--green-soft); color: var(--green); }
+  .more { padding: 10px 18px; border-top: 1px solid var(--line); }
+  .empty, td.empty { padding: 24px 18px; color: var(--muted); white-space: normal; }
+
+  .carriers { list-style: none; margin: 0; padding: 6px 18px 14px; }
+  .carriers li { padding: 10px 0 2px; }
+  .carriers .head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; margin-bottom: 5px; }
+  .carriers .head .num { color: var(--muted); font-weight: 600; }
+  .bar { display: flex; height: 8px; background: #e8ebf0; border-radius: 4px; overflow: hidden; }
+  .bar span { display: block; height: 100%; }
+
+  @media (max-width: 900px) {
+    .pipeline { grid-template-columns: repeat(2, 1fr); }
+    .stage { border-bottom: 1px solid var(--line); }
+    .attention { grid-column: 1 / -1; }
+    .cols { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 14px 12px 24px; }
+    .pipeline { grid-template-columns: 1fr; }
+    .stage { border-right: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Inbound shipments</h1>
+      <div class="sub">
+        <span class="badge" id="modeBadge">Live data</span>
+        <span id="updated"></span>
+        <button class="link" id="modeSwitch" type="button" hidden>Back to live data</button>
+      </div>
+    </div>
+    <div class="tools">
+      <label for="carrierFilter">Carrier</label>
+      <select id="carrierFilter"><option value="">All carriers</option></select>
+      <label for="search">Search shipments</label>
+      <input id="search" type="search" placeholder="Search PO, supplier or ref" autocomplete="off">
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div id="notice" class="notice" role="status" hidden></div>
+
+  <section class="pipeline" id="pipeline" aria-label="Shipments by status"></section>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="nextTitle">
+      <h2 id="nextTitle">Arriving next</h2>
+      <div class="scroll"><table id="nextTable"></table></div>
+      <div class="more" id="moreRow" hidden><button class="link" id="moreBtn" type="button"></button></div>
+    </section>
+    <section class="panel" aria-labelledby="carrierTitle">
+      <h2 id="carrierTitle">Open shipments by carrier</h2>
+      <ul class="carriers" id="carrierList"></ul>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ---------- Settings ---------- */
+/* The Fusion host comes from the page URL (?fa=https://your-host), so this file holds no pod name.
+   Set it in the mashup's URL when you register it in Application Composer. */
+const FA_PARAM = new URLSearchParams(location.search).get('fa') || '';
+const CONFIG = {
+  faBase: /^https:\/\/[A-Za-z0-9.-]+$/.test(FA_PARAM) ? FA_PARAM : '', // Fusion host that serves the REST API
+  resource: 'ZTestShipmentTracker_c',                   // custom object API name
+  pageSize: 200,
+  tokenTimeoutMs: 6000,
+  // REST attribute names. The first name found on a row wins. Check them with /describe after publishing.
+  fields: {
+    ref: ['RecordName', 'RecordNumber'],
+    po: ['PONumber_c'],
+    supplier: ['Supplier_c'],
+    carrier: ['Carrier_c'],
+    status: ['Status_c'],
+    eta: ['ETA_c'],
+    arrival: ['ActualArrival_c'],
+    overdue: ['Overdue_c']
+  }
+};
+
+const STAGES = [
+  { key: 'BOOKED',   label: 'Booked',   color: '#6b7a90' },
+  { key: 'SHIPPED',  label: 'Shipped',  color: '#1f5fbf' },
+  { key: 'CUSTOMS',  label: 'Customs',  color: '#9a5f00' },
+  { key: 'RECEIVED', label: 'Received', color: '#2b7a58' }
+];
+
+const state = { mode: 'live', rows: [], carrier: '', q: '', showAll: false, updated: null };
+
+/* ---------- Helpers ---------- */
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k === 'style') el.setAttribute('style', v);
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) el.append(kid);
+  return el;
+}
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const today = () => startOfDay(new Date());
+const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
+const fmtDate = (d) => d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
+function parseDate(v) {
+  if (!v) return null;
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+const pick = (row, names) => { for (const n of names) if (row[n] != null && row[n] !== '') return row[n]; return ''; };
+function statusKey(v) {
+  const s = String(v || '').trim().toUpperCase().replace(/\s+/g, '_');
+  return STAGES.some((x) => x.key === s) ? s : 'OTHER';
+}
+function normalise(row) {
+  const f = CONFIG.fields;
+  const flag = pick(row, f.overdue);
+  return {
+    ref: String(pick(row, f.ref)),
+    po: String(pick(row, f.po)),
+    supplier: String(pick(row, f.supplier)),
+    carrier: String(pick(row, f.carrier)) || 'Unassigned',
+    status: statusKey(pick(row, f.status)),
+    eta: parseDate(pick(row, f.eta)),
+    arrival: parseDate(pick(row, f.arrival)),
+    overdueFlag: flag === true || String(flag).toLowerCase() === 'true' || flag === 'Y'
+  };
+}
+const isOpen = (r) => r.status !== 'RECEIVED';
+const isLate = (r) => isOpen(r) && ((r.eta && r.eta < today()) || r.overdueFlag);
+const daysTo = (d) => Math.round((d - today()) / 86400000);
+
+/* ---------- Demo data (dates are relative to today) ---------- */
+function demoData() {
+  const t = today();
+  const at = (n) => { const x = new Date(t); x.setDate(x.getDate() + n); return x; };
+  const rows = [
+    ['ZSH-0000001', 'PO-24-0182', 'Gulf Fasteners Co.', 'DHL', 'SHIPPED', -4],
+    ['ZSH-0000002', 'PO-24-0185', 'Al Noor Industrial', 'Aramex', 'CUSTOMS', -2],
+    ['ZSH-0000003', 'PO-24-0190', 'Delta Valves', 'DHL', 'BOOKED', 3],
+    ['ZSH-0000004', 'PO-24-0191', 'Delta Valves', 'Maersk', 'SHIPPED', 9],
+    ['ZSH-0000005', 'PO-24-0194', 'Nile Packaging', 'Aramex', 'RECEIVED', -6],
+    ['ZSH-0000006', 'PO-24-0197', 'Sahara Cables', 'FedEx', 'CUSTOMS', 0],
+    ['ZSH-0000007', 'PO-24-0201', 'Gulf Fasteners Co.', 'DHL', 'BOOKED', 12],
+    ['ZSH-0000008', 'PO-24-0203', 'Pyramid Steel', 'Maersk', 'SHIPPED', 5],
+    ['ZSH-0000009', 'PO-24-0207', 'Al Noor Industrial', 'Aramex', 'RECEIVED', -9],
+    ['ZSH-0000010', 'PO-24-0210', 'Sahara Cables', 'FedEx', 'SHIPPED', 2],
+    ['ZSH-0000011', 'PO-24-0212', 'Pyramid Steel', 'Maersk', 'CUSTOMS', -1],
+    ['ZSH-0000012', 'PO-24-0215', 'Nile Packaging', 'Aramex', 'BOOKED', 18],
+    ['ZSH-0000013', 'PO-24-0216', 'Delta Valves', 'DHL', 'RECEIVED', -3],
+    ['ZSH-0000014', 'PO-24-0219', 'Sahara Cables', 'FedEx', 'BOOKED', 6],
+    ['ZSH-0000015', 'PO-24-0221', 'Gulf Fasteners Co.', 'Maersk', 'SHIPPED', 14],
+    ['ZSH-0000016', 'PO-24-0224', 'Al Noor Industrial', 'DHL', 'SHIPPED', 1]
+  ];
+  return rows.map(([ref, po, supplier, carrier, status, off]) => ({
+    ref, po, supplier, carrier, status, eta: at(off),
+    arrival: status === 'RECEIVED' ? at(off) : null, overdueFlag: false
+  }));
+}
+
+/* ---------- Live data: JWT from Fusion, then REST ---------- */
+function extractToken(d) {
+  if (!d) return null;
+  if (typeof d === 'string') {
+    try { return extractToken(JSON.parse(d)); } catch (e) { /* not JSON */ }
+    return /^[\w-]+\.[\w-]+\.[\w-]+$/.test(d) ? d : null;
+  }
+  if (typeof d === 'object') return d.token || d.jwt || d.access_token || extractToken(d.data) || null;
+  return null;
+}
+function requestToken() {
+  return new Promise((resolve, reject) => {
+    if (window.parent === window) {
+      reject(new Error('Live data only loads when this page is embedded in Fusion as a mashup.'));
+      return;
+    }
+    const origin = new URL(CONFIG.faBase).origin;
+    function onMessage(ev) {
+      if (ev.origin !== origin) return;           // accept tokens only from Fusion
+      const tok = extractToken(ev.data);
+      if (tok) { clearTimeout(timer); window.removeEventListener('message', onMessage); resolve(tok); }
+    }
+    const timer = setTimeout(() => {
+      window.removeEventListener('message', onMessage);
+      reject(new Error('Fusion did not send a login token. Check the mashup setup and that the page may request a JWT.'));
+    }, CONFIG.tokenTimeoutMs);
+    window.addEventListener('message', onMessage);
+    window.parent.postMessage(JSON.stringify({ origin: window.location.origin, method: 'requestJwtToken' }), origin);
+  });
+}
+async function fetchAll(token) {
+  const out = [];
+  for (let offset = 0; offset < 5000; offset += CONFIG.pageSize) {
+    const url = CONFIG.faBase + '/fscmRestApi/resources/latest/' + CONFIG.resource +
+      '?onlyData=true&limit=' + CONFIG.pageSize + '&offset=' + offset;
+    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' } });
+    if (!res.ok) throw new Error('Fusion answered ' + res.status + ' for ' + CONFIG.resource + '.');
+    const body = await res.json();
+    out.push(...(body.items || []));
+    if (!body.hasMore) break;
+  }
+  return out;
+}
+
+async function load() {
+  setNotice('');
+  if (state.mode === 'demo') {
+    state.rows = demoData();
+  } else {
+    if (!CONFIG.faBase) {
+      state.rows = [];
+      setNotice('No Fusion host set. Add ?fa=https://your-fusion-host to this page’s URL when you register the mashup.', true);
+      state.updated = new Date();
+      render();
+      return;
+    }
+    setNotice('Loading shipments from Fusion…');
+    try {
+      const token = await requestToken();
+      const raw = await fetchAll(token);
+      state.rows = raw.map(normalise);
+      const f = CONFIG.fields;
+      const known = ['status', 'eta'].some((k) => f[k].some((n) => raw[0] && n in raw[0]));
+      if (raw.length && !known) {
+        setNotice('Connected, but the status and ETA fields were not found. Fields returned: ' +
+          Object.keys(raw[0]).join(', ') + '. Update CONFIG.fields to match these names.', true);
+      } else {
+        setNotice('');
+      }
+    } catch (err) {
+      state.rows = [];
+      const blocked = err instanceof TypeError;
+      setNotice(blocked
+        ? 'The browser blocked the request to Fusion (often a CORS restriction) or the network failed.'
+        : err.message, true);
+    }
+  }
+  state.updated = new Date();
+  render();
+}
+
+function setNotice(msg, isError) {
+  const n = $('notice');
+  n.hidden = !msg;
+  n.textContent = msg;
+  n.className = 'notice' + (isError ? ' error' : '');
+  n.setAttribute('role', isError ? 'alert' : 'status');
+}
+
+/* ---------- Rendering ---------- */
+function visibleRows() {
+  const q = state.q.trim().toLowerCase();
+  return state.rows.filter((r) =>
+    (!state.carrier || r.carrier === state.carrier) &&
+    (!q || (r.po + ' ' + r.supplier + ' ' + r.ref).toLowerCase().includes(q)));
+}
+
+function renderCarrierOptions() {
+  const sel = $('carrierFilter');
+  const names = [...new Set(state.rows.map((r) => r.carrier))].sort();
+  const keep = names.includes(state.carrier) ? state.carrier : '';
+  state.carrier = keep;
+  sel.replaceChildren(h('option', { value: '', text: 'All carriers' }),
+    ...names.map((n) => h('option', { value: n, text: n })));
+  sel.value = keep;
+}
+
+function renderPipeline(rows) {
+  const total = rows.length || 1;
+  const stageEls = STAGES.map((s) => {
+    const n = rows.filter((r) => r.status === s.key).length;
+    return h('div', { class: 'stage' },
+      h('div', { class: 'name' }, h('span', { class: 'dot', style: 'background:' + s.color }), s.label),
+      h('div', { class: 'count', text: String(n) }),
+      h('div', { class: 'track' }, h('div', { class: 'fill', style: 'width:' + Math.round((n / total) * 100) + '%;background:' + s.color })));
+  });
+  const late = rows.filter(isLate).length;
+  const soon = rows.filter((r) => isOpen(r) && !isLate(r) && r.eta && daysTo(r.eta) <= 7).length;
+  const att = h('div', { class: 'attention' + (late ? ' risk' : '') },
+    h('div', { class: 'row' }, h('span', { class: 'label', text: 'Overdue' }),
+      h('span', { class: 'big' + (late ? ' risk-text' : ''), text: String(late) })),
+    h('div', { class: 'row' }, h('span', { class: 'label', text: 'Due in 7 days' }),
+      h('span', { class: 'big', text: String(soon) })));
+  $('pipeline').replaceChildren(...stageEls, att);
+  const other = rows.filter((r) => r.status === 'OTHER').length;
+  if (other && !$('notice').classList.contains('error')) setNotice(plural(other, 'shipment') + ' with a status that is not Booked, Shipped, Customs or Received. They count in no stage.', false);
+}
+
+function timing(r) {
+  if (!isOpen(r)) return h('span', { class: 'chip done', text: r.arrival ? 'Received ' + fmtDate(r.arrival) : 'Received' });
+  if (!r.eta) return h('span', { class: 'chip', text: 'No ETA' });
+  const d = daysTo(r.eta);
+  if (isLate(r)) return h('span', { class: 'chip late', text: d < 0 ? plural(-d, 'day') + ' late' : 'Overdue' });
+  if (d === 0) return h('span', { class: 'chip soon', text: 'Due today' });
+  return h('span', { class: d <= 7 ? 'chip soon' : 'chip', text: 'In ' + plural(d, 'day') });
+}
+
+function renderTable(rows) {
+  const open = rows.filter(isOpen).sort((a, b) => {
+    const la = isLate(a), lb = isLate(b);
+    if (la !== lb) return la ? -1 : 1;
+    if (!a.eta !== !b.eta) return a.eta ? -1 : 1;
+    return a.eta && b.eta ? a.eta - b.eta : 0;
+  });
+  const limit = state.showAll ? open.length : 10;
+  const shown = open.slice(0, limit);
+  const table = $('nextTable');
+  if (!open.length) {
+    table.replaceChildren(h('tbody', {}, h('tr', {}, h('td', { class: 'empty', text: state.rows.length
+      ? 'No open shipments match these filters. Clear the filters to see all shipments.'
+      : 'No shipments yet. Create one in the Shipment Trackers work area and it will appear here.' }))));
+    $('moreRow').hidden = true;
+    return;
+  }
+  const head = h('thead', {}, h('tr', {}, ['Shipment', 'PO', 'Supplier', 'Carrier', 'Status', 'ETA', 'Timing']
+    .map((t) => h('th', { scope: 'col', text: t }))));
+  const body = h('tbody', {}, shown.map((r) => {
+    const s = STAGES.find((x) => x.key === r.status);
+    return h('tr', {},
+      h('td', { class: 'ref', text: r.ref }),
+      h('td', { text: r.po }),
+      h('td', { class: 'supplier', text: r.supplier }),
+      h('td', { text: r.carrier }),
+      h('td', {}, h('span', { class: 'status' }, h('span', { class: 'dot', style: 'background:' + (s ? s.color : '#6b7a90') }), s ? s.label : 'Other')),
+      h('td', { text: fmtDate(r.eta) }),
+      h('td', {}, timing(r)));
+  }));
+  table.replaceChildren(head, body);
+  const more = $('moreRow');
+  more.hidden = open.length <= 10;
+  $('moreBtn').textContent = state.showAll ? 'Show fewer' : 'Show all ' + open.length + ' open shipments';
+}
+
+function renderCarriers(rows) {
+  const open = rows.filter(isOpen);
+  const by = new Map();
+  for (const r of open) {
+    const c = by.get(r.carrier) || { n: 0, late: 0 };
+    c.n++; if (isLate(r)) c.late++;
+    by.set(r.carrier, c);
+  }
+  const list = [...by.entries()].sort((a, b) => b[1].n - a[1].n);
+  const max = list.length ? list[0][1].n : 1;
+  const ul = $('carrierList');
+  if (!list.length) { ul.replaceChildren(h('li', { class: 'empty', text: 'No open shipments to show.' })); return; }
+  ul.replaceChildren(...list.map(([name, c]) => h('li', {},
+    h('div', { class: 'head' }, h('span', { text: name }),
+      h('span', { class: 'num', text: c.n + (c.late ? ' (' + c.late + ' late)' : '') })),
+    h('div', { class: 'bar', role: 'img', 'aria-label': name + ': ' + c.n + ' open, ' + c.late + ' late' },
+      h('span', { style: 'width:' + Math.round(((c.n - c.late) / max) * 100) + '%;background:var(--blue)' }),
+      h('span', { style: 'width:' + Math.round((c.late / max) * 100) + '%;background:var(--red)' })))));
+}
+
+function render() {
+  renderCarrierOptions();
+  const rows = visibleRows();
+  if (!$('notice').classList.contains('error') && $('notice').textContent.startsWith('Loading')) setNotice('');
+  renderPipeline(rows);
+  renderTable(rows);
+  renderCarriers(rows);
+  const live = state.mode === 'live';
+  $('modeBadge').textContent = live ? 'Live data' : 'Demo data';
+  $('modeBadge').className = 'badge' + (live ? '' : ' demo');
+  $('modeSwitch').hidden = live;
+  $('updated').textContent = state.updated ? 'Updated ' + state.updated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+/* ---------- Wiring ---------- */
+$('carrierFilter').addEventListener('change', (e) => { state.carrier = e.target.value; state.showAll = false; render(); });
+$('search').addEventListener('input', (e) => { state.q = e.target.value; state.showAll = false; render(); });
+$('refresh').addEventListener('click', load);
+$('moreBtn').addEventListener('click', () => { state.showAll = !state.showAll; render(); });
+$('modeSwitch').addEventListener('click', () => { state.mode = 'live'; load(); });
+
+state.mode = new URLSearchParams(location.search).get('mode') === 'demo' ? 'demo' : 'live';
+load();
+</script>
+</body>
+</html>
