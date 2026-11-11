@@ -148,9 +148,11 @@
 /* The Fusion host comes from the page URL (?fa=https://your-host), so this file holds no pod name.
    Set it in the mashup's URL when you register it in Application Composer. */
 const FA_PARAM = new URLSearchParams(location.search).get('fa') || '';
+const RES_PARAM = new URLSearchParams(location.search).get('res') || '';
 const CONFIG = {
   faBase: /^https:\/\/[A-Za-z0-9.-]+$/.test(FA_PARAM) ? FA_PARAM : '', // Fusion host that serves the REST API
-  resource: 'ZTestShipmentTracker_c',                   // custom object API name
+  // Custom object API name. Add ?res=purchaseOrders to the URL to test the connection against an existing resource.
+  resource: /^[A-Za-z0-9_]+$/.test(RES_PARAM) ? RES_PARAM : 'ZTestShipmentTracker_c',
   pageSize: 200,
   tokenTimeoutMs: 6000,
   // REST attribute names. The first name found on a row wins. Check them with /describe after publishing.
@@ -321,7 +323,7 @@ async function load() {
       state.rows = [];
       const blocked = err instanceof TypeError;
       setNotice(blocked
-        ? 'The browser blocked the request to Fusion (often a CORS restriction) or the network failed.'
+        ? 'The browser could not read Fusion’s answer for ' + CONFIG.resource + '. Either that REST endpoint does not exist yet (an unpublished sandbox has no endpoint), or Fusion does not allow requests from this page (CORS).'
         : err.message, true);
     }
   }
